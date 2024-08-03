@@ -1,0 +1,165 @@
+--- dwm.c
++++ dwm.c
+@@ -47,8 +47,8 @@
+ /* macros */
+ #define BUTTONMASK              (ButtonPressMask|ButtonReleaseMask)
+ #define CLEANMASK(mask)         (mask & ~(numlockmask|LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
+-#define INTERSECT(x,y,w,h,m)    (MAX(0, MIN((x)+(w),(m)->mx+(m)->mw) - MAX((x),(m)->mx)) \
+-                               * MAX(0, MIN((y)+(h),(m)->my+(m)->mh) - MAX((y),(m)->my)))
++#define INTERSECT(x,y,w,h,m)    (MAX(0, MIN((x)+(w),(m)->wx+(m)->ww) - MAX((x),(m)->wx)) \
++                               * MAX(0, MIN((y)+(h),(m)->wy+(m)->wh) - MAX((y),(m)->wy)))
+ #define ISVISIBLE(C)            ((C->tags & C->mon->tagset[C->mon->seltags]))
+ #define LENGTH(X)               (sizeof X / sizeof X[0])
+ #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
+@@ -1077,45 +1057,6 @@ manage(Window w, XWindowAttributes *wa)
+ 	focus(NULL);
+ }
+ 
+-void
+-managealtbar(Window win, XWindowAttributes *wa)
+-{
+-	Monitor *m;
+-	if (!(m = recttomon(wa->x, wa->y, wa->width, wa->height)))
+-		return;
+-
+-	m->barwin = win;
+-	m->by = wa->y;
+-	bh = m->bh = wa->height;
+-	updatebarpos(m);
+-	arrange(m);
+-	XSelectInput(dpy, win, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
+-	XMoveResizeWindow(dpy, win, wa->x, wa->y, wa->width, wa->height);
+-	XMapWindow(dpy, win);
+-	XChangeProperty(dpy, root, netatom[NetClientList], XA_WINDOW, 32, PropModeAppend,
+-		(unsigned char *) &win, 1);
+-}
+-
+-void
+-managetray(Window win, XWindowAttributes *wa)
+-{
+-	Monitor *m;
+-	if (!(m = recttomon(wa->x, wa->y, wa->width, wa->height)))
+-		return;
+-
+-	m->traywin = win;
+-	m->tx = wa->x;
+-	m->tw = wa->width;
+-	updatebarpos(m);
+-	arrange(m);
+-	XSelectInput(dpy, win, EnterWindowMask|FocusChangeMask|PropertyChangeMask|StructureNotifyMask);
+-	XMoveResizeWindow(dpy, win, wa->x, wa->y, wa->width, wa->height);
+-	XMapWindow(dpy, win);
+-	XChangeProperty(dpy, root, netatom[NetClientList], XA_WINDOW, 32, PropModeAppend,
+-			(unsigned char *) &win, 1);
+-}
+-
+-
+ void
+ mappingnotify(XEvent *e)
+ {
+@@ -1447,29 +1384,6 @@ scan(void)
+ 	}
+ }
+ 
+-void
+-scantray(void)
+-{
+-	unsigned int num;
+-	Window d1, d2, *wins = NULL;
+-	XWindowAttributes wa;
+-
+-	if (XQueryTree(dpy, root, &d1, &d2, &wins, &num)) {
+-		for (unsigned int i = 0; i < num; i++) {
+-			if (wmclasscontains(wins[i], altbarclass, alttrayname)) {
+-				if (!XGetWindowAttributes(dpy, wins[i], &wa))
+-					break;
+-				managetray(wins[i], &wa);
+-			}
+-		}
+-	}
+-
+-	if (wins)
+-		XFree(wins);
+-}
+-
+-
+-
+ void
+ sendmon(Client *c, Monitor *m)
+ {
+@@ -1715,13 +1628,6 @@ spawn(const Arg *arg)
+ 	}
+ }
+ 
+-void
+-spawnbar()
+-{
+-	if (*altbarcmd)
+-		system(altbarcmd);
+-}
+-
+ void
+ tag(const Arg *arg)
+ {
+@@ -1856,41 +1753,10 @@ unmanage(Client *c, int destroyed)
+ 	arrange(m);
+ }
+ 
+-void
+-unmanagealtbar(Window w)
+-{
+-    Monitor *m = wintomon(w);
+-
+-    if (!m)
+-        return;
+-
+-    m->barwin = 0;
+-    m->by = 0;
+-    m->bh = 0;
+-    updatebarpos(m);
+-    arrange(m);
+-}
+-
+-void
+-unmanagetray(Window w)
+-{
+-	Monitor *m = wintomon(w);
+-
+-	if (!m)
+-		return;
+-
+-	m->traywin = 0;
+-	m->tx = 0;
+-	m->tw = 0;
+-	updatebarpos(m);
+-	arrange(m);
+-}
+-
+ void
+ unmapnotify(XEvent *e)
+ {
+ 	Client *c;
+-	Monitor *m;
+ 	XUnmapEvent *ev = &e->xunmap;
+ 
+ 	if ((c = wintoclient(ev->window))) {
+@@ -1898,18 +1764,12 @@ unmapnotify(XEvent *e)
+ 			setclientstate(c, WithdrawnState);
+ 		else
+ 			unmanage(c, 0);
+-	} else if ((m = wintomon(ev->window)) && m->barwin == ev->window)
+-		unmanagealtbar(ev->window);
+-	else if (m->traywin == ev->window)
+-		unmanagetray(ev->window);
++	}
+ }
+ 
+ void
+ updatebars(void)
+ {
+-	if (usealtbar)
+-		return;
+-
+ 	Monitor *m;
+ 	XSetWindowAttributes wa = {
+ 		.override_redirect = True,
